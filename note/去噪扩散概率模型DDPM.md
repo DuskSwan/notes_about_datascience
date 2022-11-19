@@ -1,5 +1,11 @@
 主要参考：https://zhuanlan.zhihu.com/p/530602852
 
+它的原文是：https://lilianweng.github.io/posts/2021-07-11-diffusion-models/
+
+[TOC]
+
+
+
 # 1.模型总览
 
 如下图所示。DDPM模型主要分为两个过程：forward加噪过程（从右往左）和reverse去噪过程（从左往右）。加噪过程意思是指向数据集的真实图片中逐步加入高斯噪声，而去噪过程是指对加了噪声的图片逐步去噪，从而还原出真实图片。加噪过程满足一定的数学规律，而去噪过程则采用神经网络来学习。这么一来，神经网络就可以从一堆杂乱无章的噪声图片中生成真实图片了。
@@ -14,16 +20,22 @@
 
 具体来说，有以下公式：
 $$
-q(x_t|x_{t−1})\sim N(x_t;\sqrt{1−β_t}x_{t−1},β_tI) \\
-q(x_{T}|x_0)= ∏_{t=1}^Tq(x_t|x_{t−1})
+q(x_t|x_{t−1})= N(x_t;\sqrt{1−β_t}x_{t−1},β_tI) \\
+q(x_{1:T}|x_0)= ∏_{t=1}^Tq(x_t|x_{t−1})
 $$
-其中$q(x_t|x_{t-1})$指的可能是$x_t$在条件$x_{t-1}$下的密度函数，也可能是概率；$N(x_t;\sqrt{1−β_t}x_{t−1},β_tI)$是指以$ \sqrt{1−β_t}x_{t−1} $为均值、$ β_tI $为协方差矩阵、给出$x_t$的高斯分布。这个记法很奇怪，它没有说明$q$到底是密度函数还是概率。
+> 有几个记号需要说明：
+>
+> 第一，$x_{1:T}$实际表示的是$x_t$，其中$t$可取$1,2,\cdots,T$。它也会出现在有条件的情况下。
+>
+> 第二，$q$是一个可以表示分布，也可以表示密度函数的符号，语义根据上下文确定。而且它并不是一个“确定的分布/密度”，而是一个“表示这是分布/密度的符号”，后文描述条件分布时，都会使用$q(x|y)$形式的记法，具体谁是条件谁是变量要看括号里的内容。这种记法虽然可能引起理解上的混乱，但他是原文献采用的，我也没办法。
+
+其中$q(x_t|x_{t-1})$指的应该是$x_t$在条件$x_{t-1}$下的分布的概率密度函数；$N(x_t;\sqrt{1−β_t}x_{t−1},β_tI)$是指以$ \sqrt{1−β_t}x_{t−1} $为均值、$ β_tI $为协方差矩阵、给出$x_t$的高斯分布；由于分布、分布函数、概率密度函数三者可以相互表示，所以在表示某个分布时不对他们加以区分，默认是密度函数。至于第二行，等号的右边是多个密度的乘积，这似乎把密度与概率混淆了，这是可以的吗？我需要回顾随机向量的密度函数相关的知识。
 
 由于每一步的噪声只由$ β_T $和$ x_{t−1} $来确定，因此只要有了$ x_0 $，并且确定$β_1,...,β_T $，我们就可以推出任意一步的加噪数据$ x_1,...,x_T $。这个Forward加噪过程是一个马尔科夫链过程。
 
 随着$ t $的不断增大，最终原始数据$ x_0 $会逐步失去它的特征。当$ T→∞ $时，$ x_T $趋近于一个各向独立的高斯分布。从视觉上来看，就是将原本一张完好的照片加噪很多步后，图片几乎变成了一张完全是噪声的图片。
 
-### 任意时刻数据xt的计算
+### 任意时刻数据$x_t$的计算
 
 在逐步加噪的过程中，我们其实并不需要一步一步地从$ x_0,x_1,... $去迭代得到$ x_t $。事实上，我们可以直接从$ x_0 $和固定值序列$ \{β_t∈(0,1)\}_{t=1}^T $直接计算得到。
 
@@ -42,8 +54,124 @@ x_t &= \sqrt{\alpha_t}x_{t-1}+\sqrt{1-\alpha_t}z_{t-1} \\
 $$
 先看省略号之前的部分，这里面的$z_{t-1},z_{t-2}$都是服从标准正态分布的，而$\bar z_{t-2}=\frac{\sqrt{\alpha_t(1-\alpha_{t-1})}z_{t-2}+\sqrt{1-\alpha_t}z_{t-1}}{\sqrt{1-\alpha_{t}\alpha_{t-1}}}$是两个标准正态分布的变量的线性组合，它也服从正态分布，实际上这个正态分布我们可以算出来，其均值还是$0$，方差是$\frac{\alpha_t(1-\alpha_{t-1})I+(1-\alpha_t)I}{1-\alpha_{t}\alpha_{t-1}}=I$，没想到吧，还是个标准正态分布。
 
-于是一路替换下去，最终只剩下了$x_0$和$\bar z$两个变量，前者是已知的，后者服从标准正态分布。参数$\beta_t,\alpha_t$都给定，只要有$z$就能直接算出$x_t$了。
+于是一路替换下去，最终只剩下了$x_0$和$\bar z$两个变量，前者是已知的，后者服从标准正态分布。这又意味着$x_t$服从以$\sqrt{\bar\alpha_t}x_{0}$为均值、$(1-\bar\alpha_t)I$为方差的正态分布，当$t$很大时，$\bar\alpha_t$会接近$0$，这时的$x_t$接近服从标准正态分布，也即完全的白噪声。在计算时，参数$\beta_t,\alpha_t$都给定，只要有$z$就能产生$x_t$了。在后文，这个$z$也表示作$z_t$，这个下标表示不同的$t$会给出不同的$z_t$，在后续讨论中会看到其意义。
 
-### βt的取值设置
+### $β_t$的取值设置
 
 一般地，随着$ t $的增大，生成的数据要更加接近随机的高斯分布，所以$ β_t $的取值应该越大。所以取$ β_1<β_2<...<β_T$，也即$\alpha_1>\alpha_2>\cdots>\alpha_T$。由于$\beta_t\in(0,1)$，直接得到$\alpha_t\in(0,1)$，进而$\bar\alpha_1>\bar\alpha_1>\cdots>\bar\alpha_T$。
+
+# 3. Reverse Diffusion逆扩散过程（Reverse去噪过程）
+
+### 逆扩散过程近似模型$p_θ$
+
+如果我们能将上述过程转换方向，即找到一个分布$ q(x_{t−1}|x_t) $，它描述了已知$x_t$时$x_{t-1}$的分布情况，逐步从中采样，那么就可以从一个随机的服从高斯分布$ N(0,I) $的样本$x_T$出发，重建出一个原始样本$x_0$，也就是从一个完全杂乱无章的噪声图片中得到一张真实图片。
+
+但是，$ q(x_{t−1}|x_t) $应该根据数据集给定，我们也没办法给出它的计算方法，所以考虑学习一个模型$p_θ$来近似模拟这个条件概率，从而运行逆扩散过程。具体来说，$q(x_{t−1}|x_t)$同样应该是一个高斯分布，其均值为$\mu_\theta(x_t,t)$，方差为$\Sigma_\theta(x_t,t)$，而$p_\theta$应该根据$(x_t,t)$给出分布$q(x_{t−1}|x_t)$下的一个抽样作为$x_{t-1}$。$p_\theta$可以看作一个有参数$\theta$的分布/密度函数。模型可以表示为
+$$
+p_θ(x_{t-1}|x_t)=N(x_{t−1};μ_θ(x_t,t),\Sigma_θ(x_t,t)) \\
+p_θ(x_{0:T})=p(x_T)∏_{t=1}^Tp_θ(x_{t−1}|x_t) \\
+$$
+这两行作为数学公式都非常非常不严格！可以体会到，作者实际上混淆了函数$p_\theta$和分布$q(x_0|x_T)$，用$p_\theta(x_{t-1}|x_t)$来表示这个给出分布$q(x_{t−1}|x_t)$下样本的函数$p_\theta$。另外$p(x_T)$也没有解释，可以理解为$x_T$的概率密度函数，在前述的思路下，应该是一个标准高斯分布来作为噪声。而$p_\theta(x_{0:T})$应该是已知$x_T$分布时，倒推出$x_{0:T}$分布的函数（模型）。
+
+不过，我们最终得出的模型，并不是直接输出采样样本的。后续的讨论中可以看到，实际上这个模型给出的是不同的$z_t$，或者记作$z_\theta(x_t,t)$。此处先用$p_\theta$来理解思路。
+
+下图为扩散过程和逆扩散过程的示例：
+
+![img](img/v2-d20acce1e3267b4054876ccf551c0e09_1440w.webp)
+
+### 后验扩散条件概率$q(x_{t−1}|x_t,x_0)$
+
+在实际的逆扩散过程中，应该是给定了$ x_t $和$ x_0 $，然后计算出$ x_{t−1} $，也即需要$x_0$这一原数据来训练模型（否则，没有任何参考，是不可能将噪声还原成某个独特分布的）。考虑有$q(x_{t−1}|x_t,x_0)$的形式的后验扩散条件分布是有意义的。
+
+这个后验扩散条件分布可以写成：
+
+![img](img/v2-c160433195938f7ea66472ca4be1d573_1440w.webp)
+
+使用贝叶斯公式（Bayes' rule），可以得到：
+$$
+\begin{align}
+q(x_{t−1}|x_t,x_0)
+&= q(x_t|x_{t−1},x_0)\frac{q(x_{t−1}|x_0)}{q(x_t|x_0)} \\
+& \propto \exp⁡\left[ -\frac12 \left(
+	\frac{(x_t−\sqrt{α_t}x_{t−1})^2}{β_t} + 
+	\frac{(x_{t−1}−\sqrt {\bar α_{t−1}}x_0)^2}{1−\bar α_{t−1}} − 
+	\frac{(x_t−\sqrt{\bar α_t}x_0)^2}{1−\bar α_t}
+	\right)\right] \\
+& = \exp⁡\left[ -\frac12 \left(
+	(\frac{\alpha_t}{\beta_t}+\frac{1}{1−\bar α_{t−1}})x_{t-1}^2 - 
+	(\frac{2\sqrt{\alpha_t}}{\beta_t}x_t+\frac{2\sqrt{\bar\alpha_{t-1}}}{1−\bar α_{t−1}}x_0)x_{t-1} +
+	C(x_t,x_0)
+	\right)\right] \\
+\end{align}
+$$
+其中，正比符号是因为省略了系数（比如单个正态分布就有$1/\sigma\sqrt{2\pi}$）。$ C(x_t,x_0) $是一个关于$ x_t $和$ x_0 $，而不包含$ x_{t−1}$的函数。
+
+由这个概率密度的形式可以看出，$q(x_{t−1}|x_t,x_0)$仍然是一个高斯分布（似乎密度差了一个常数？这里要注意下）。根据高斯分布的概率密度，通过配方，可以整理出方差$\tilde\beta_t$与均值$\tilde\mu_t$：
+
+![img](img/v2-3964a45a84e1c7d31973c13bef004e2d_1440w.webp)
+
+由前面Forward过程我们推导得到的$ x_0 $和$ x_t $的关系，我们有$ x_0=\frac1{\sqrt{\bar α_t}}(x_{t}−\sqrt{1-\bar α_t}z_t)$ ，代入上式后得到：
+
+![img](img/v2-5cf0a033486a90f7b8aecc2b1135246a_1440w.webp)
+
+现在，$x_{t-1}$所服从的条件高斯分布，其方差$\tilde\beta_t$与均值$\tilde\mu_t$可以由$x_t$与标准正态分布采样的变量$z_t$得到。这一关系式在计算损失函数时会用到。
+
+### 以目标数据分布的似然函数作为损失函数
+
+为了描述如何建立模型，需要给出损失函数。考虑有两件事需要最小化，其一是真实分布$q(x_{1:T}|x_0)$与模型$p_\theta(x_{1:T}|x_0)$的差距，这个差距用KL散度来描述；其二是以$\theta$为参数，分布$p_\theta(x_0)$在已知样本$x_0$时的负对数似然函数。二者的自变量都是$\theta$。
+
+考虑如下计算过程：（KL散度的计算暂时略过）
+
+![img](img/v2-a3ffd75fd19bdcd598236de57ecf67ef_1440w.webp)
+
+使用 Jensen 不等式也很容易得到相同的结果。 假设我们想最小化交叉熵作为学习目标，那么：
+
+![img](img/v2-f9739c16d82be84046de274ab9008b6b_1440w.webp)
+
+如此得到的，是针对$\theta,x_0$的损失，此外还有已经指定的$T,x_T$，不妨把他写成$L(\theta,x_0;T,x_T)$。为了将方程中的每一项都转换使其可计算，可以将目标进一步改写为几个 KL 散度和熵项的组合：
+
+> To convert each term in the equation to be analytically computable, the objective can be further rewritten to be a combination of several KL-divergence and entropy terms (See the detailed step-by-step process in Appendix B in [Sohl-Dickstein et al., 2015](https://link.zhihu.com/?target=https%3A//arxiv.org/abs/1503.03585)):
+
+![img](img/v2-a35588ed578008385b2ae7a7d3c9a826_1440w.webp)
+
+我们分别标记变分下界损失中的每个分量：
+
+![img](img/v2-ccbb6a1036a634fa56b8ed7d96b92253_1440w.webp)
+
+$L_\text{VLB}$ 中的每个KL项（除了$L_0$）都比较了两个高斯分布，因此可以以封闭形式计算它们。$L_T$是常数，因为$ q(x_T|x_0) $中没有可学习的参数$\theta$，而$ x_T $是一个高斯噪声，所以$p_\theta(x_T)$是确定的，$L_T$在训练期间可以忽略。 [Ho et al. 2020](https://link.zhihu.com/?target=https%3A//arxiv.org/abs/2006.11239) 使用一个从$ N(x_0;μ_θ(x_1,1),\Sigma_\theta(x_1,1)) $推导出的独立的离散解码器来模拟$ L_0 $。
+
+> Every KL term in  LVLB (except for L0 ) compares two Gaussian distributions and therefore they can be computed in [closed form](https://link.zhihu.com/?target=https%3A//en.wikipedia.org/wiki/Kullback%E2%80%93Leibler_divergence%23Multivariate_normal_distributions).  LT is constant and can be ignored during training because  has q no learnable parameters and xT is a Gaussian noise. [Ho et al. 2020](https://link.zhihu.com/?target=https%3A//arxiv.org/abs/2006.11239) models  using a separate discrete decoder derived from N(x0;μθ(x1,1),∑θ(x1,1)) .
+
+现在，得到了损失函数$L(\theta,x_0;T,x_T)$的计算式。
+
+# 三、DDPM的训练
+
+### 1. 训练损失$ L_t $的参数化
+
+上述的$L_t=D_{KL}(q(x_t|x_{t+1},x_0)\|p_\theta(x_t|x_{t+1}))$依然不是一个可计算的形式，进一步将其变化为
+$$
+L_t = E_{x_0,z}\left[
+ \frac1{2\|\Sigma_\theta(x_t,t)\|^2_2} \|\tilde\mu_t(x_t,x_0)-\mu_\theta(x_t,t)\|^2_2
+\right]
+$$
+回忆一下，我们之前说到需要学习一个神经网络来近似模拟在逆扩散过程中的条件概率分布 $p_θ(x_{t−1}|x_t)=N(x_{t−1};μ_θ(x_t,t),\Sigma_θ(x_t,t)) $。其中，我们希望有模型$ μ_θ $来预测$\tilde μ_t=\frac1{\sqrt{α_t}}(x_t−\frac{β_t}{\sqrt{1−\bar α_t}}z_t)$。因为我们已经有了$x_t$作为训练时的输入，我们可以将高斯噪声项$z_t$也看作与$(x_t,t)$有关的函数，从而实现在时刻$ t $从$ x_t $来预测$ x_{t-1} $：
+
+![img](img/v2-088a6edbce7854baa5c461429756a586_1440w.webp)
+
+损失项$ L_t $被参数化，也即表示成与$(x_t,t)$有关的函数，它表示模型$\mu_\theta$的结果与理论结果$ \tilde μ_t $的差距：
+
+![img](img/v2-696f039d909c1f9b2c0c301c04b11cc8_1440w.webp)
+
+（*）简化：根据经验，[Ho et al. (2020)](https://link.zhihu.com/?target=https%3A//arxiv.org/abs/2006.11239) 发现，在忽略加权项的简化目标函数下，扩散模型可以训练得效果更好：
+
+![img](img/v2-5aa09dcb86f802dd170b042a684fd1cf_1440w.webp)
+
+因此最终简化后得目标函数为：
+
+![img](img/v2-839800656c888d8abbb8b9870dc2a644_1440w.webp)
+
+其中，$ C $是一个与$ θ $无关的常量。
+
+### 2. 训练与推理过程伪代码
+
+![img](img/v2-ee9b1536c5680eff1f806c44c30c35c0_1440w.webp)
