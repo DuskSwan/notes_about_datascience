@@ -11,3 +11,5 @@ self-attention的内在原理讲解：https://www.zhihu.com/column/p/410776234
 同样是self-attention，内容不多，但有很多好看的无水印图：https://blog.csdn.net/Lamours/article/details/125192046
 
 transformer的另一个讲解，细节很多：https://zhuanlan.zhihu.com/p/338817680
+
+更多关于transformer的图：https://blog.csdn.net/weixin_44305115/article/details/101622645
