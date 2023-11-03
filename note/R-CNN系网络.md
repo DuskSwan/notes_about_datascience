@@ -12,6 +12,10 @@
 
 非极大值抑制：https://zhuanlan.zhihu.com/p/382831616
 
+Faster RCNN的细节：https://zhuanlan.zhihu.com/p/31426458
+
+Mask RCNN的结构图：https://zhuanlan.zhihu.com/p/651009999
+
 # R-CNN
 
 Region-CNN是目标检测领域的第一个深度学习模型。其核心思路如下图
@@ -29,7 +33,7 @@ RCNN算法流程可分为4个步骤，对每张图片：
 
 ### 寻找候选区(Region of interest)
 
-最传统的做法只能处理单一目标图片，使用不同大小的滑窗，依次滑过图片，每次计算当前位置的得分（可用分类任务的概率得分），最终留下得分高的窗口。这是中非常暴力的方法。
+最传统的做法只能处理单一目标图片，使用不同大小的滑窗，依次滑过图片，每次计算当前位置的得分（可用分类任务的概率得分），最终留下得分高的窗口。这是种非常暴力的方法。
 
 R-CNN利用了 Selective Search 算法来生成候选区，这一算法的主要思想：图像中物体可能存在的区域应该是有某些相似性或者连续性的。于是，首先对输入图像进行分割算法产生许多小的子区域；其次，根据这些子区域之间相似性（相似性标准主要有颜色、纹理、大小等等）进行区域合并，不断的进行区域迭代合并。每次迭代过程中对这些合并的子区域做bounding boxes（外切矩形），这些子区域外切矩形就是通常所说的候选框。
 
@@ -82,7 +86,7 @@ $$
 
 ![img](img/v2-27fd3d9a886d8a4ace1e8ffc8ab126f9_1440w.png)
 
-实际上是将R-CNN的步骤2换成了新的步骤2、3来加速特征提取，其余部分不变。接下来着重说2、3步骤也就是ROI pooling做的事情。
+实际上是将R-CNN的步骤2（每个选区分别提取特征）换成了新的步骤2、3（在总特征图上划分特征）来加速特征提取，其余部分不变。接下来着重说2、3步骤也就是ROI pooling做的事情。
 
 ### RoI pooling
 
@@ -117,4 +121,65 @@ RoI池化面对每个形状为(w,h,c)的特征图（投影），将其划分成7
 
 ### 区域生成网络RPN
 
-RPN的输入是原图特征图，输出多个候选框坐标。
+RPN的输入是原图特征图，输出多个候选框坐标。原始图片的特征图记为F1，形状为(w,h,c)，在F1上使用$3\times3$的卷积得到(w,h,256)的特征图F2，现在F2上的一个点(x,y)代表原图的一个区域，它拥有一个256维的向量作为特征。（值得说明的是，这里的256其实是backbone的通道数，如果用VGG16为512个通道，ZF网络则是256个通道）
+
+对于F2上的一个点(x,y)，我们考虑以他为中心的k个不同大小的锚框（anchor box），每个锚框都使用该位置的256维特征向量去计算2个分数（前景or背景）和4个坐标（RoI的坐标参数），共得到6k个值。每个anhcor要分positive和negative（理解为前景和背景），之后训练时在合适的anchors中随机选取128个postive anchors+128个negative anchors进行训练。
+
+在具体实施中，是对F2分别施加以两个$1\times1$的卷积层，各自得到(w,h,2k)与(w,h,4k)的“特征图”。每个位置(x,y)处的向量分别描述了k锚框捕捉到的RoI的类别与坐标。（当然，一个锚框也可以什么都没捕捉到，相当于捕捉到了“背景”。）
+
+![img](img/v2-f775a96c62bdd7888aa5d85d81c604a3_1440w.webp)
+
+在论文中，锚框的面积为{128^2^,256^2^,512^2^}，长宽比为{0.5,1,2}，实际用了k=3*3=9个锚框。
+
+### RPN 损失
+
+RPN的损失也分为两个部分，分类损失和边界框回归损失。
+$$
+L(\{p_i\},\{t_i\}) = \frac1{N_{cls}} \sum_i L_{cls}(p_i,p_i^*)
++ \lambda \frac1{N_{reg}} \sum_i p_i^*L_{reg}(t_i,t_i^*)
+$$
+其中
+$p_i$表示第$i$个anchor预测为真实标签的概率；
+$p_i^*$表示第$i$个anchor预测为前景时为1，背景时为0；
+$t_i$表示预测第i个anchor的边界框回归参数；
+$t_i^*$表示第i个anchor对应的GT Box；
+$N_{cls}$表示一个mini-batch中的所有样本数量256；
+$N_{reg}$表示anchor位置的个数（不是anchor个数）约2400；
+$\lambda$是一个平衡系数，论文中取 10。
+
+### 网络训练过程
+
+把网络分为三部分，提取原始图片特征的是CNN，从特征图上找RoI的是RPN，根据特征图与RoI作为分类的是Fast- RCNN。
+
+1、通过ImageNet pre-trained model初始化CNN，然后端到端fine-tuning RPN部分。
+
+2、固定住RPN，然后通过RPN产生的region proposal来训练Fast R-CNN部分。
+
+3、固定住CNN和Fast R-CNN来fine-tuning RPN网络。
+
+4、固定住CNN和RPN来fine-tuning Fast R-CNN网络。
+
+# Mask R-CNN
+
+Faster R-CNN的RoI pooling是粗粒度的空间量化特征提取，不能做输入和输出pixel-to-pixel的特征对齐，并且不能直接应用于实例分割。于是Mask R-CNN提出用RoIAlign来替代RoI pooling，得到pixel-to-pixel的特征对齐，并且在Faster R-CNN框架的基础上简单的增加了一个mask分支就能实现实例分割。
+
+![img](img/v2-3227fefba0df534c828dd7fa54262c67_1440w.webp)
+
+整个网络的思路如下：
+
+1、先将图片输入CNN得到featmap；
+2、然后通过RPN产生RoI；
+3、然后将每个RoI送入ROI Align层（作用与RoI pooling类同）转化成相同维度的向量；
+4、最后通过两个独立的FC，预测出类别class和位置box，同时通过mask分支预测出分类分数前N个RoI的分割mask。
+
+只看整体流程，似乎与Faster RCNN是相同的。
+
+下面详细描述Mask R-CNN与Faster RCNN不同的地方。
+
+### mask预测头
+
+这部分其实就是一个FCN，也即通过卷积与反卷积操作，输出一张图作为掩码。
+
+### 损失函数
+
+Mask RCNN相当于在Faster RCNN的基础上加上了一个Mask分支，那么Mask RCNN的损失即为Faster RCNN损失加上Mask分支的损失，也即$L=L_{rpn}+L_{fasterRCNN}+L_{mask}$。RPN部分的损失前面已经说过；fasterRCNN指的是什么，没看懂，还需要继续研究；mask部分的损失可以参考FCN如何计算，本质上是一个交叉熵损失，参见https://juejin.cn/post/7166046959633956895#heading-14
