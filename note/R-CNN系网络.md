@@ -169,7 +169,7 @@ $\lambda$是一个平衡系数，论文中取 10。
 
 Faster R-CNN的RoI pooling是粗粒度的空间量化特征提取，不能做输入和输出pixel-to-pixel的特征对齐，并且不能直接应用于实例分割。于是Mask R-CNN提出用RoIAlign来替代RoI pooling，得到pixel-to-pixel的特征对齐，并且在Faster R-CNN框架的基础上简单的增加了一个mask分支就能实现实例分割。
 
-![img](img/v2-3227fefba0df534c828dd7fa54262c67_1440w.webp)
+![img](img/166007274-4ab81650-3fae-41d2-bf16-295497f74a86.png)
 
 整个网络的思路如下：
 
