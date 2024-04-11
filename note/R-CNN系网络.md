@@ -120,14 +120,9 @@ RoI池化与SPP不同，它面对每个形状为(w,h,c)的特征图（投影）�
 
 # Faster R-CNN
 
-为了进一步加快模型训练，Faster R-CNN用区域生成网络（Region Proposal Network, RPN）取代了selective search算法。算法流程分三个步骤：
+为了进一步加快模型训练，Faster R-CNN用区域生成网络（Region Proposal Network, RPN）取代了selective search算法。
 
-1、将图像输入CNN网络得到相应的特征图，在原论文中这一步采用的VGG16；
-2、使用RPN结构生成候选框，将 RPN 生成的候选框投影到特征图上获得相应的特征矩阵；
-3、将每个特征矩阵通过 RoI pooling 层缩放为$7 \times 7$大小的特征图，接着将特征图展平变成特征向量；
-4、通过全连接层获得预测结果。
-
-<img src="img/v2-2461348fdf18cb5f3e24ec4fd887d043_1440w.webp" alt="img" style="zoom:67%;" />
+<img src="img/v2-2461348fdf18cb5f3e24ec4fd887d043_1440w.webp" alt="img" style="zoom:100%;" />
 
 与Fast R-CNN相比，不同之处仅仅在于改变了检测框的提取方式。下面描述Faster-RCNN的工作全过程。
 
@@ -162,11 +157,11 @@ RoI池化与SPP不同，它面对每个形状为(w,h,c)的特征图（投影）�
 
 Faster R-CNN整体的流程可以分为三步：
 
-1. 提特征： 图片（`img`）经过预训练的网络（`Extractor`），提取到了图片的特征（`feature`）。在实现中，Extractor采用的是VGG16。
+1. 提特征： 将图片（`img`）输入预训练的网络（`Extractor`），提取出图片的特征（`feature`）。在实现中，Extractor采用的是VGG16。
 
 2. Region Proposal： 利用提取的特征（`feature`），经过RPN网络，找出一定数量的`rois`（region of interests）。这一部分除了要用到Extractor提取出来的特征，还要用到数据的bbox这一标签。
 
-3. 分类与回归：将`rois`和图像特征`features`，输入到`RoIHead`，对这些`rois`进行分类，判断都属于什么类别，同时对这些`rois`的位置进行微调。
+3. 分类与回归：将`rois`和图像特征`features`，输入到`RoIHead`，对这些`rois`进行筛选和分类，判断都属于什么类别，同时对这些`rois`的位置进行微调，得出最终预测框位置。
 
 ### Extractor
 
