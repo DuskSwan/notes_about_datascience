@@ -155,6 +155,8 @@ RoI池化与SPP不同，它面对每个形状为(w,h,c)的特征图（投影）�
 
 ![image-20240327101006680](D:\GithubRepos\notes_about_datascience\note\img\image-20240327101006680.png)
 
+> 第二张图描述的是训练过程，而不是推理。
+
 Faster R-CNN整体的流程可以分为三步：
 
 1. 提特征： 将图片（`img`）输入预训练的网络（`Extractor`），提取出图片的特征（`feature`）。在实现中，Extractor采用的是VGG16。
@@ -287,9 +289,9 @@ L(\{p_i\},\{t_i\}) = \frac1{N_{cls}} \sum_i L_{cls}(p_i,p_i^*)
 + \lambda \frac1{N_{reg}} \sum_i p_i^*L_{reg}(t_i,t_i^*)
 $$
 其中：
-$p_i$表示第$i$个样本anchor预测为前景的概率；$p_i^*$表示第$i$个样本anchor预测为前景/背景的真实标签（前景为1背景为0）；$L_{cls}$是交叉熵函数；$N_{cls}$表示一个mini-batch中的所有样本数量256。这一部分在评价计算anchor的前景or背景评分的那个卷积层。
+$p_i$表示第$i$个样本anchor预测为前景的概率；$p_i^*$表示第$i$个样本anchor为前景/背景的真实标签（前景为1背景为0）；$L_{cls}$是交叉熵函数；$N_{cls}$表示一个mini-batch中的所有样本数量256。这一部分在评价计算anchor的前景or背景评分的那个卷积层。
 
-$t_i$表示预测第i个样本anchor的边界框修正值；$t_i^*$表示第i个样本anchor对应的实际修正值（由真实预测框反推）；$L_{reg}$是smooth-L1函数；乘以$p_i^*$意味着只计算预测为前景的anchor；$N_{reg}$表示前景anchor的个数，也即实际标签为1的anchor；$\lambda$是一个平衡系数，论文中取10，但我看代码里没有。
+$t_i$表示预测第i个样本anchor的边界框修正值；$t_i^*$表示第i个样本anchor对应的实际修正值（由真实预测框反推）；$L_{reg}$是smooth-L1函数；乘以$p_i^*$意味着只计算前景的anchor；$N_{reg}$表示前景anchor的个数，也即实际标签为1的anchor；$\lambda$是一个平衡系数，论文中取10，但我看代码里没有。
 
 ### RoI损失
 
