@@ -87,7 +87,9 @@
 
 - [x] Attention&Transformer.md
 
-- [ ] BERT
+- [x] BERT
+
+- [x] ChatGPT
 
 ## 7、广泛的学习
 
