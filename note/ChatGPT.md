@@ -22,6 +22,8 @@ GPT的基础是Transformer的解码器，它直接接受输入然后进行预测
 
 它堆叠了12个Transformer解码器来提升性能，每一个单独部分的实现参加Transformer部分的笔记。解码器的最终输出同样可以接不同的任务头来完成不同的任务，在对话任务中，使用的是一个由层归一化、线性层、softmax函数组成的预测器（回归器）。
 
+（关于每个模块的工作流程，参见[Transformer](Attention&Transformer.md)的笔记）
+
 ## 训练
 
 ### 可逆分词方法
