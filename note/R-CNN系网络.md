@@ -132,7 +132,7 @@ RoI池化与SPP不同，它面对每个形状为(w,h,c)的特征图（投影）�
 
 本例子采用的数据集是VOC2007。训练使用的每张图片含有多个标注好的识别对象，用bounding boxes框起来，每个bounding box有对应的标签。
 
-![image-20240306154142768](D:\GithubRepos\notes_about_datascience\note\img\image-20240306154142768.png)
+![image-20240306154142768](.\img\image-20240306154142768.png)
 
 对每张图片，需要进行如下数据处理：
 
@@ -151,9 +151,9 @@ RoI池化与SPP不同，它面对每个形状为(w,h,c)的特征图（投影）�
 
 以下两图来自[陈云](https://zhuanlan.zhihu.com/p/32404424)。前者描述思路，后者描述程序。
 
-![image-20240306154658829](D:\GithubRepos\notes_about_datascience\note\img\image-20240306154658829.png)
+![image-20240306154658829](.\img\image-20240306154658829.png)
 
-![image-20240327101006680](D:\GithubRepos\notes_about_datascience\note\img\image-20240327101006680.png)
+![image-20240327101006680](.\img\image-20240327101006680.png)
 
 > 第二张图描述的是训练过程，而不是推理。
 
