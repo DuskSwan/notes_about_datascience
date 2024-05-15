@@ -8,7 +8,7 @@
 
 循环神经网络的结构可以参考下图
 
-![image-20240102150716213](.\img\image-20240102150716213.png)
+![image-20240102150716213](img/image-20240102150716213.png)
 
 其中的$x_t$是输入，$s_t$（也可记为$h_t$）是隐藏层的状态，$o_t$是输出，$U,W,V$是变换时的系数（权重）矩阵。此外还有偏置$b_h,b_o$，激活函数$\phi_h,\phi_o$这些参数。在循环神经网络中，只有一个隐藏层，不过实际上也可以把这一层的每个神经元都看成一层，毕竟它们会产生可传递的影响。
 
@@ -26,7 +26,7 @@
 
 LSTM的图解如下：
 
-![lstm](.\img\LSTM.png)
+![lstm](img/LSTM.png)
 
 图中的A可以对标RNN中用$x_t$计算$s_t$的过程，而在LSTM中，不再是一次计算得出唯一的$s_t$，而有多个隐藏在其中的神经元。图中的A之间有两条箭头，上面的就代表了长期记忆，它被保存在单元状态$C_t$中；下面的则是短期记忆，保存在隐藏状态$h_t$中。
 
@@ -34,7 +34,7 @@ LSTM的图解如下：
 
 在实际中，往往会叠用多个LSTM网络，将某一层的输入作为下一层的输出，再次运算得到新的输出，以此类推，来增强拟合程度，如下图：
 
-![](.\img\LSTM2.jpg)
+![](img/LSTM2.jpg)
 
 由此，我们知道，实际上的隐藏状态（或曰单次输出）$h_t$与单元状态$C_t$都应该是二维的。我们最终得到的输出，实际上是隐藏状态的最后一层。
 
@@ -100,7 +100,7 @@ nn.LSTM作为网络中的一层，使用格式为`output, (hn, cn) = model(input
 
 GRU网络是LSTM的变式，相比LSTM，它取消了单元状态，细胞之间只传递隐藏状态，而且只有两个门：更新门和输出门。更新门同时进行了遗忘与记忆的操作。结构图与计算公式如下
 
-[![img](https://github.com/DuskSwan/notes_about_datascience/raw/master/old%20files/img%5CLSTM3-var-GRU.png)](https://github.com/DuskSwan/notes_about_datascience/blob/master/old files/img\LSTM3-var-GRU.png)
+[![img](https://github.com/DuskSwan/notes_about_datascience/raw/master/old%20files/img%5CLSTM3-var-GRU.png)](https://github.com/DuskSwan/notes_about_datascience/blob/master/old files/img/LSTM3-var-GRU.png)
 
 其中，$h_t$是隐藏状态，$r_t$是新学到的信息，$z_t$是权重，$\tilde h_t$是新学到的记忆。点号是矩阵乘法，星号是逐元素相乘也即Hadamard乘积。
 

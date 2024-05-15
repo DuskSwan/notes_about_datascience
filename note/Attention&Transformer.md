@@ -40,7 +40,7 @@ Transformer全过程详解：《BERT基础教程：Transformer大模型实战》
 
 Transformer模型同样处理序列到序列的任务，当然也包括机器翻译。大体上讲，它依然遵循encoder-decoder架构，但编码解码过程与过去完全不同。接下来我们详细描述Transformer的过程。摆一个全流程图镇楼：
 
-![image-20240401200001816](.\img\image-20240401200001816.png)
+![image-20240401200001816](img/image-20240401200001816.png)
 
 ### 准备工作
 
