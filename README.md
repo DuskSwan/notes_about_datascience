@@ -78,7 +78,6 @@
 
 ### CV
 
-- [x] 去噪概率扩散模型DDPM
 - [x] R-CNN系网络
 - [x] ViT图像分类
 
@@ -87,6 +86,11 @@
 - [x] Attention&Transformer
 - [x] BERT
 - [x] ChatGPT
+
+### 生成式模型
+
+- [x] 生成对抗网络GANs
+- [x] 去噪概率扩散模型DDPM
 
 ## 7、广泛的学习
 
