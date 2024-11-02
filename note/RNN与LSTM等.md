@@ -14,13 +14,17 @@
 
 具体来说，在每个时刻$t$，传入参数$x_t$，该时刻的隐藏层状态将会更新为 $$ h_t=s_t=\phi_h(Ux_t+Wh_{t-1}+b_h) $$ 该时刻的输出为 $$ o_t=\phi_o(Vh_t+b_o) $$ 最终得到一系列输出${o_t}$，通过调整参数$W,U,V$等来训练网络。
 
-在理论上RNN可以保留所有历史时刻的信息，但在实际应用中，时间间隔太长将导致信息在传递过程中逐渐衰减，经过多次传递后，信息的实际效益会大大降低了。这意味着普通RNN难以解决信息的长期依赖问题。实际中更常用的是RNN的变体，具有代表性的变体是长短期记忆 (Long Short Term Memory, LSTM) 网络和门限循环单元 (Gated Recurrent Unit, GRU)。
+在训练中，RNN存在的一个问题是容以梯度爆炸或消失。这一结论可以从其形式推导出来，计算损失函数L关于权重W的梯度会发现，迭代次数多了以后存在有关W的指数项，因此容易爆炸或消失（推导暂时略过）。
+
+这一点也可以在“物理意义”上给出解释。理论上，RNN可以保留所有历史时刻的信息，但在实际应用中，时间间隔太长将导致信息在传递过程中逐渐衰减，经过多次传递后，信息的实际效益会大大降低了，也即梯度不是消失就是爆炸。
+
+这意味着普通RNN难以解决信息的长期依赖问题。实际中更常用的是RNN的变体，具有代表性的变体是长短期记忆 (Long Short Term Memory, LSTM) 网络和门限循环单元 (Gated Recurrent Unit, GRU)。
 
 ## 长短期记忆网络LSTM
 
 长短期记忆（Long Short Term  Memory）网络是RNN的改进，它不仅可以接收上一时期的数据影响（短期记忆），也可以受很多时期之前的数据影响（长期记忆）。这同样很有意义，比如分析“the clouds are in the sky”时，clouds对预测sky的作用很大，而它们并不是紧挨着的。
 
-以下思路讲解来自[1](https://colah.github.io/posts/2015-08-Understanding-LSTMs/)，翻译可以查看[2](https://zhuanlan.zhihu.com/p/104475016)与[3](https://www.cnblogs.com/xuruilong100/p/8506949.html)。
+以下思路讲解来自[Understanding LSTM Networks](https://colah.github.io/posts/2015-08-Understanding-LSTMs/)，翻译可以查看[[干货]深入浅出LSTM及其Python代码实现](https://zhuanlan.zhihu.com/p/104475016)与[理解 LSTM 网络](https://www.cnblogs.com/xuruilong100/p/8506949.html)。
 
 ### 思路
 
@@ -100,7 +104,7 @@ nn.LSTM作为网络中的一层，使用格式为`output, (hn, cn) = model(input
 
 GRU网络是LSTM的变式，相比LSTM，它取消了单元状态，细胞之间只传递隐藏状态，而且只有两个门：更新门和输出门。更新门同时进行了遗忘与记忆的操作。结构图与计算公式如下
 
-[![img](https://github.com/DuskSwan/notes_about_datascience/raw/master/old%20files/img%5CLSTM3-var-GRU.png)](https://github.com/DuskSwan/notes_about_datascience/blob/master/old files/img/LSTM3-var-GRU.png)
+[![img](img%5CLSTM3-var-GRU.png)](https://github.com/DuskSwan/notes_about_datascience/blob/master/old files/img/LSTM3-var-GRU.png)
 
 其中，$h_t$是隐藏状态，$r_t$是新学到的信息，$z_t$是权重，$\tilde h_t$是新学到的记忆。点号是矩阵乘法，星号是逐元素相乘也即Hadamard乘积。
 
