@@ -2,11 +2,13 @@
 
 它的原文是：https://lilianweng.github.io/posts/2021-07-11-diffusion-models/
 
+重要参考：https://spaces.ac.cn/archives/9119
+
 [TOC]
 
 
 
-# 1.模型总览
+# 1. 模型总览
 
 如下图所示。DDPM模型主要分为两个过程：forward加噪过程（从右往左）和reverse去噪过程（从左往右）。加噪过程意思是指向数据集的真实图片中逐步加入高斯噪声，而去噪过程是指对加了噪声的图片逐步去噪，从而还原出真实图片。加噪过程满足一定的数学规律，而去噪过程则采用神经网络来学习。这么一来，神经网络就可以从一堆杂乱无章的噪声图片中生成真实图片了。
 
@@ -58,7 +60,7 @@ x_t &= \sqrt{\alpha_t}x_{t-1}+\sqrt{1-\alpha_t}z_{t-1} \\
 $$
 先看省略号之前的部分，这里$\bar z_{t-2}=\displaystyle\frac{\sqrt{\alpha_t(1-\alpha_{t-1})}z_{t-2}+\sqrt{1-\alpha_t}z_{t-1}}{\sqrt{1-\alpha_{t}\alpha_{t-1}}}$，由于$z_{t-1},z_{t-2}$都是服从标准正态分布的，因此$\bar z_{t-2}$是两个标准正态分布的变量的线性组合，也服从正态分布。实际上这个正态分布我们可以算出来，其均值还是$0$，方差是$\displaystyle \frac{\alpha_t(1-\alpha_{t-1})I+(1-\alpha_t)I}{1-\alpha_{t}\alpha_{t-1}}=I$，没想到吧，还是个标准正态分布。由此类推，$x_t=\sqrt{a_ta_{t-1}a_{t-2}}x_{t-3}+\sqrt{1-a_ta_{t-1}a_{t-2}}\bar z_{t-3}$时的$\bar z_{t-3}$同样还是标准正态分布。
 
-于是一路替换下去，最终只剩下了$x_0$和$z$两个变量，前者是已知的，后者服从标准正态分布。这又意味着$x_t$服从以$\sqrt{\bar\alpha_t}x_{0}$为均值、$(1-\bar\alpha_t)I$为方差的正态分布，当$t$很大时，$\bar\alpha_t$会接近$0$，这时的$x_t$接近服从标准正态分布，也即完全的白噪声。在计算时，参数$\beta_t,\alpha_t$都给定，只要有$z$就能产生$x_t$了。在后文，这个$z$也表示作$z_t$，这个下标表示不同的$t$对应不同的$z_t$，在后续讨论中会看到其意义。
+于是一路替换下去，最终只剩下了$x_0$和$z$两个变量，前者是已知的，后者服从标准正态分布。这又意味着$x_t$服从以$\sqrt{\bar\alpha_t}x_{0}$为均值、$(1-\bar\alpha_t)I$为方差的正态分布，当$t$很大时，$\bar\alpha_t$会接近$0$，这时的$x_t$接近服从标准正态分布，也即完全的白噪声。在计算时，参数$\beta_t,\alpha_t$都给定，只要有$z$就能产生$x_t$了。将这个$z$记作$z_t$，这个下标表示不同的$t$对应不同的$z_t$，在后续讨论中会看到其意义。
 
 ### $β_t$的取值设置
 
@@ -89,7 +91,7 @@ $$
 
 下图为扩散过程和逆扩散过程的图示：
 
-![img](img/v2-d20acce1e3267b4054876ccf551c0e09_1440w.webp)
+![img](img/diffusion-example.png)
 
 ### 后验扩散条件概率$q(x_{t−1}|x_t,x_0)$
 
@@ -139,76 +141,123 @@ $$
 $$
 \begin{aligned}
 \tilde{\boldsymbol{\mu}}_t
-&= \frac{\sqrt{\alpha_t}(1 - \bar{\alpha}_{t-1})}{1 - \bar{\alpha}_t} \mathbf{x}_t + \frac{\sqrt{\bar{\alpha}_{t-1}}\beta_t}{1 - \bar{\alpha}_t} \frac{1}{\sqrt{\bar{\alpha}_t}}(\mathbf{x}_t - \sqrt{1 - \bar{\alpha}_t}\boldsymbol{\epsilon}_t) \\
-&= \color{red}{\frac{1}{\sqrt{\alpha_t}} \Big( \mathbf{x}_t - \frac{1 - \alpha_t}{\sqrt{1 - \bar{\alpha}_t}} \boldsymbol{\epsilon}_t \Big)}
+&= \frac{\sqrt{\alpha_t}(1 - \bar{\alpha}_{t-1})}{1 - \bar{\alpha}_t} \mathbf{x}_t + \frac{\sqrt{\bar{\alpha}_{t-1}}\beta_t}{1 - \bar{\alpha}_t} \frac{1}{\sqrt{\bar{\alpha}_t}}(\mathbf{x}_t - \sqrt{1 - \bar{\alpha}_t}\boldsymbol{z}_t) \\
+&= \color{red}{\frac{1}{\sqrt{\alpha_t}} \Big( \mathbf{x}_t - \frac{1 - \alpha_t}{\sqrt{1 - \bar{\alpha}_t}} \boldsymbol{z}_t \Big)}
 \end{aligned}
 $$
-现在，$x_{t-1}$所服从的条件高斯分布，其方差$\tilde\beta_t$与均值$\tilde\mu_t$都可以由$x_t$与标准正态分布采样的变量$z_t$得到。这里$x_t$是已知的，$z_t$则来自$x_0$与$x_t$的关系。如果我们能“学出”$z_t$，那就可以直接算出$\tilde\mu_t$来作为$x_{t-1}$的无偏估计了。这也就是上面提过的，并不需要真的给出一个分布$p_\theta$，模型能给出$z_\theta$来近似$z_t$就够了。
+现在，$x_{t-1}$所服从的条件高斯分布，其方差$\tilde\beta_t$与均值$\tilde\mu_t$都可以由$x_t$与标准正态分布采样的变量$z_t$得到。这里$x_t$是已知的，$z_t$则来自$x_0$与$x_t$的关系。如果我们能“学出”$z_t$，那就可以直接算出$\tilde\mu_t$来作为$x_{t-1}$的无偏估计了。这也就是上面提过的，并不需要真的给出一个分布$p_\theta$，只要模型能给出$z_\theta$来近似$z_t$，那么$p_\theta$可以由$z_\theta$得到。
 
 ### 以目标数据分布的似然函数作为损失函数
 
-为了描述模型近似的效果，需要给出损失函数。考虑分布$p_\theta(x_0)$在已知样本$x_0$时的负对数似然函数，这是一个最小化目标。此外真实分布$q(x_{1:T}|x_0)$与模型$p_\theta(x_{1:T}|x_0)$的差距也可以衡量模型效果，这个差距用KL散度来描述。二者的自变量都是$\theta$。分析它们的性质，最终得到实际使用的损失函数。
+先从理论上分析一下用$p_\theta(x_0)$来近似真实分布$q(x_0)$时的损失。
 
-考虑如下计算过程：（KL散度的计算暂时略过）
+首先考虑分布$p_\theta(x_0)$在已知样本$x_0$时的负对数似然函数，这是一个最小化目标。此外真实分布$q(x_{1:T}|x_0)$与模型$p_\theta(x_{1:T}|x_0)$的差距也可以衡量模型效果，这个差距用KL散度来描述。二者的自变量都是$\theta$。分析它们的性质，会帮助我们在后续得出模型的损失。
 
-![img](img/v2-a3ffd75fd19bdcd598236de57ecf67ef_1440w.webp)
+就像VAE中一样，考虑$p_\theta(x_0)$的负对数似然，满足下面的不等式：
+$$
+\begin{aligned}
+- \log p_\theta(\mathbf{x}_0) 
+&\leq - \log p_\theta(\mathbf{x}_0) + D_\text{KL}(q(\mathbf{x}_{1:T}\vert\mathbf{x}_0) \| p_\theta(\mathbf{x}_{1:T}\vert\mathbf{x}_0) ) & \small{\text{; KL is non-negative}}\\
+&= - \log p_\theta(\mathbf{x}_0) + \mathbb{E}_{\mathbf{x}_{1:T}\sim q(\mathbf{x}_{1:T} \vert \mathbf{x}_0)} \Big[ \log\frac{q(\mathbf{x}_{1:T}\vert\mathbf{x}_0)}{p_\theta(\mathbf{x}_{0:T}) / p_\theta(\mathbf{x}_0)} \Big] \\
+&= - \log p_\theta(\mathbf{x}_0) + \mathbb{E}_q \Big[ \log\frac{q(\mathbf{x}_{1:T}\vert\mathbf{x}_0)}{p_\theta(\mathbf{x}_{0:T})} + \log p_\theta(\mathbf{x}_0) \Big] \\
+&= \mathbb{E}_q \Big[ \log \frac{q(\mathbf{x}_{1:T}\vert\mathbf{x}_0)}{p_\theta(\mathbf{x}_{0:T})} \Big] \\
+\text{Let }L_\text{VLB} 
+&= \mathbb{E}_{q(\mathbf{x}_{0:T})} \Big[ \log \frac{q(\mathbf{x}_{1:T}\vert\mathbf{x}_0)}{p_\theta(\mathbf{x}_{0:T})} \Big] \geq - \mathbb{E}_{q(\mathbf{x}_0)} \log p_\theta(\mathbf{x}_0)
+\end{aligned}
+$$
+使用 Jensen 不等式也很容易得到相同的结果，假设我们想将最小化交叉熵作为学习目标，那么：
+$$
+\begin{aligned}
+L_\text{CE}
+&= - \mathbb{E}_{q(\mathbf{x}_0)} \log p_\theta(\mathbf{x}_0) \\
+&= - \mathbb{E}_{q(\mathbf{x}_0)} \log \Big( \int p_\theta(\mathbf{x}_{0:T}) d\mathbf{x}_{1:T} \Big) \\
+&= - \mathbb{E}_{q(\mathbf{x}_0)} \log \Big( \int q(\mathbf{x}_{1:T} \vert \mathbf{x}_0) \frac{p_\theta(\mathbf{x}_{0:T})}{q(\mathbf{x}_{1:T} \vert \mathbf{x}_{0})} d\mathbf{x}_{1:T} \Big) \\
+&= - \mathbb{E}_{q(\mathbf{x}_0)} \log \Big( \mathbb{E}_{q(\mathbf{x}_{1:T} \vert \mathbf{x}_0)} \frac{p_\theta(\mathbf{x}_{0:T})}{q(\mathbf{x}_{1:T} \vert \mathbf{x}_{0})} \Big) \\
+&\leq - \mathbb{E}_{q(\mathbf{x}_{0:T})} \log \frac{p_\theta(\mathbf{x}_{0:T})}{q(\mathbf{x}_{1:T} \vert \mathbf{x}_{0})} \\
+&= \mathbb{E}_{q(\mathbf{x}_{0:T})}\Big[\log \frac{q(\mathbf{x}_{1:T} \vert \mathbf{x}_{0})}{p_\theta(\mathbf{x}_{0:T})} \Big] = L_\text{VLB}
+\end{aligned}
+$$
+可见$L_\text{VLB}$是一个可行的最小化目标，其中变量是$\theta,x_0$，参数是$T,x_t$，不妨把他写成$L(\theta,x_0;T,x_T)$。进一步计算，将等式中的每个项转换为可分析计算的，可以将目标进一步改写为多个 KL-发散项和熵项的组合（详细步骤见 [Sohl-Dickstein et al., 2015](https://arxiv.org/abs/1503.03585)）：
+$$
+\begin{aligned}
+L_\text{VLB} 
+&= \mathbb{E}_{q(\mathbf{x}_{0:T})} \Big[ \log\frac{q(\mathbf{x}_{1:T}\vert\mathbf{x}_0)}{p_\theta(\mathbf{x}_{0:T})} \Big] \\
+&= \mathbb{E}_q \Big[ \log\frac{\prod_{t=1}^T q(\mathbf{x}_t\vert\mathbf{x}_{t-1})}{ p_\theta(\mathbf{x}_T) \prod_{t=1}^T p_\theta(\mathbf{x}_{t-1} \vert\mathbf{x}_t) } \Big] \\
+&= \mathbb{E}_q \Big[ -\log p_\theta(\mathbf{x}_T) + \sum_{t=1}^T \log \frac{q(\mathbf{x}_t\vert\mathbf{x}_{t-1})}{p_\theta(\mathbf{x}_{t-1} \vert\mathbf{x}_t)} \Big] \\
+&= \mathbb{E}_q \Big[ -\log p_\theta(\mathbf{x}_T) + \sum_{t=2}^T \log \frac{q(\mathbf{x}_t\vert\mathbf{x}_{t-1})}{p_\theta(\mathbf{x}_{t-1} \vert\mathbf{x}_t)} + \log\frac{q(\mathbf{x}_1 \vert \mathbf{x}_0)}{p_\theta(\mathbf{x}_0 \vert \mathbf{x}_1)} \Big] \\
+&= \mathbb{E}_q \Big[ -\log p_\theta(\mathbf{x}_T) + \sum_{t=2}^T \log \Big( \frac{q(\mathbf{x}_{t-1} \vert \mathbf{x}_t, \mathbf{x}_0)}{p_\theta(\mathbf{x}_{t-1} \vert\mathbf{x}_t)}\cdot \frac{q(\mathbf{x}_t \vert \mathbf{x}_0)}{q(\mathbf{x}_{t-1}\vert\mathbf{x}_0)} \Big) + \log \frac{q(\mathbf{x}_1 \vert \mathbf{x}_0)}{p_\theta(\mathbf{x}_0 \vert \mathbf{x}_1)} \Big] \\
+&= \mathbb{E}_q \Big[ -\log p_\theta(\mathbf{x}_T) + \sum_{t=2}^T \log \frac{q(\mathbf{x}_{t-1} \vert \mathbf{x}_t, \mathbf{x}_0)}{p_\theta(\mathbf{x}_{t-1} \vert\mathbf{x}_t)} + \sum_{t=2}^T \log \frac{q(\mathbf{x}_t \vert \mathbf{x}_0)}{q(\mathbf{x}_{t-1} \vert \mathbf{x}_0)} + \log\frac{q(\mathbf{x}_1 \vert \mathbf{x}_0)}{p_\theta(\mathbf{x}_0 \vert \mathbf{x}_1)} \Big] \\
+&= \mathbb{E}_q \Big[ -\log p_\theta(\mathbf{x}_T) + \sum_{t=2}^T \log \frac{q(\mathbf{x}_{t-1} \vert \mathbf{x}_t, \mathbf{x}_0)}{p_\theta(\mathbf{x}_{t-1} \vert\mathbf{x}_t)} + \log\frac{q(\mathbf{x}_T \vert \mathbf{x}_0)}{q(\mathbf{x}_1 \vert \mathbf{x}_0)} + \log \frac{q(\mathbf{x}_1 \vert \mathbf{x}_0)}{p_\theta(\mathbf{x}_0 \vert \mathbf{x}_1)} \Big]\\
+&= \mathbb{E}_q \Big[ \log\frac{q(\mathbf{x}_T \vert \mathbf{x}_0)}{p_\theta(\mathbf{x}_T)} + \sum_{t=2}^T \log \frac{q(\mathbf{x}_{t-1} \vert \mathbf{x}_t, \mathbf{x}_0)}{p_\theta(\mathbf{x}_{t-1} \vert\mathbf{x}_t)} - \log p_\theta(\mathbf{x}_0 \vert \mathbf{x}_1) \Big] \\
+&= \mathbb{E}_q [\underbrace{D_\text{KL}(q(\mathbf{x}_T \vert \mathbf{x}_0) \parallel p_\theta(\mathbf{x}_T))}_{L_T} + \sum_{t=2}^T \underbrace{D_\text{KL}(q(\mathbf{x}_{t-1} \vert \mathbf{x}_t, \mathbf{x}_0) \parallel p_\theta(\mathbf{x}_{t-1} \vert\mathbf{x}_t))}_{L_{t-1}} \underbrace{- \log p_\theta(\mathbf{x}_0 \vert \mathbf{x}_1)}_{L_0} ]
+\end{aligned}
+$$
+我们给$L_\text{VLB}$中的每个分量起个名字：
+$$
+\begin{aligned}
+L_\text{VLB} &= L_T + L_{T-1} + \dots + L_0 \\
+\text{where } L_T &= D_\text{KL}(q(\mathbf{x}_T \vert \mathbf{x}_0) \parallel p_\theta(\mathbf{x}_T)) \\
+L_t &= D_\text{KL}(q(\mathbf{x}_t \vert \mathbf{x}_{t+1}, \mathbf{x}_0) \parallel p_\theta(\mathbf{x}_t \vert\mathbf{x}_{t+1})) \text{ for }1 \leq t \leq T-1 \\
+L_0 &= - \log p_\theta(\mathbf{x}_0 \vert \mathbf{x}_1)
+\end{aligned}
+$$
+$L_\text{VLB}$ 中的每个KL项（也即除了$L_0$的每个$L_t$）都比较了两个高斯分布，因此可以以封闭形式（closed form）计算它们。$L_T$是常数，因为$ q(x_T|x_0) $中没有可学习的参数$\theta$，而$ x_T $是一个高斯噪声，所以$p_\theta(x_T)$是确定的，$L_T$在训练期间可以忽略。 至于$L_0$，[Ho et al. 2020](https://arxiv.org/abs/2006.11239) 使用一个从$ N(x_0;μ_θ(x_1,1),\Sigma_\theta(x_1,1)) $推导出的独立的离散解码器来建模$ L_0 $。
 
-使用 Jensen 不等式也很容易得到相同的结果。 假设我们想最小化交叉熵作为学习目标，那么：
-
-![img](img/v2-f9739c16d82be84046de274ab9008b6b_1440w.webp)
-
-如此得到的，是针对$\theta,x_0$的损失，此外还有已经指定的$T,x_T$，不妨把他写成$L(\theta,x_0;T,x_T)$。为了将方程中的每一项都转换使其可计算，可以将目标进一步改写为几个 KL 散度和熵项的组合：
-
-> To convert each term in the equation to be analytically computable, the objective can be further rewritten to be a combination of several KL-divergence and entropy terms (See the detailed step-by-step process in Appendix B in [Sohl-Dickstein et al., 2015](https://link.zhihu.com/?target=https%3A//arxiv.org/abs/1503.03585)):
-
-![img](img/v2-a35588ed578008385b2ae7a7d3c9a826_1440w.webp)
-
-我们分别标记变分下界损失中的每个分量：
-
-![img](img/v2-ccbb6a1036a634fa56b8ed7d96b92253_1440w.webp)
-
-$L_\text{VLB}$ 中的每个KL项（除了$L_0$）都比较了两个高斯分布，因此可以以封闭形式计算它们。$L_T$是常数，因为$ q(x_T|x_0) $中没有可学习的参数$\theta$，而$ x_T $是一个高斯噪声，所以$p_\theta(x_T)$是确定的，$L_T$在训练期间可以忽略。 [Ho et al. 2020](https://link.zhihu.com/?target=https%3A//arxiv.org/abs/2006.11239) 使用一个从$ N(x_0;μ_θ(x_1,1),\Sigma_\theta(x_1,1)) $推导出的独立的离散解码器来模拟$ L_0 $。
-
-> Every KL term in  LVLB (except for L0 ) compares two Gaussian distributions and therefore they can be computed in [closed form](https://link.zhihu.com/?target=https%3A//en.wikipedia.org/wiki/Kullback%E2%80%93Leibler_divergence%23Multivariate_normal_distributions).  LT is constant and can be ignored during training because  has q no learnable parameters and xT is a Gaussian noise. [Ho et al. 2020](https://link.zhihu.com/?target=https%3A//arxiv.org/abs/2006.11239) models  using a separate discrete decoder derived from N(x0;μθ(x1,1),∑θ(x1,1)) .
+> 所谓的封闭形式（closed form），指的是计算两个高斯分布的KL散度时，有更加直接的形式。比如对于两个一元高斯分布$p=N_0(\mu_0,\sigma_0^2)$和$q=N_1(\mu_1,\sigma_1^2)$，其KL散度为
+> $$
+> D_\text{KL} (p\|q) = 
+> \log\frac{\sigma_1}{\sigma_0} +
+> \frac{\sigma_0^2+(\mu_0-\mu_1)^2}{2\sigma_1^2} - \frac12
+> $$
 
 现在，得到了损失函数$L(\theta,x_0;T,x_T)$的计算式。不过实际上，在训练中使用的损失只是$L_t$，它描述了每一步去噪时的模型损失。
 
-# 三、DDPM的训练
+# DDPM的训练
 
 ### 1. 训练损失$ L_t $的参数化
 
 下来要给出具体的模型形式，以及训练目标了。
 
-回忆一下，之前说过需要学习一个神经网络，来近似模拟在逆扩散过程中的条件概率分布 $p_θ(x_{t−1}|x_t)=N(x_{t−1};μ_θ(x_t,t),\Sigma_θ(x_t,t)) $。事实上，我们只需要有模型$ μ_θ $来预测$\tilde μ_t=\frac1{\sqrt{α_t}}(x_t−\frac{β_t}{\sqrt{1−\bar α_t}}z_t)$，从而实现在时刻$ t $从$ x_t $来预测$ x_{t-1} $。因为我们已经有了$x_t$作为训练时的输入，我们又可以将高斯噪声项$z_t$也看作与$(x_t,t)$有关的函数，实现模型$\mu_\theta$又转化成了实现$z_\theta$。现在来看看怎么描述$z_\theta$的损失。
+回忆一下，之前说到我们希望模拟逆扩散过程中的条件概率分布 $p_θ(x_{t−1}|x_t)=N(x_{t−1};μ_θ(x_t,t),\Sigma_θ(x_t,t)) $。事实上，只需要有模型$ μ_θ $来近似这个分布的均值$\tilde μ_t=\frac1{\sqrt{α_t}}(x_t−\frac{β_t}{\sqrt{1−\bar α_t}}z_t)$，就可以用$\mu_\theta$作为$ x_{t-1} $的预测。因为我们已经有了$x_t$作为训练时的输入，又可以将高斯噪声项$z_t$也看作与$(x_t,t)$有关的函数，建模$\mu_\theta$就转化成了建模$z_\theta$来近似$z_t$。
 
-上述的$L_t=D_{KL}(q(x_t|x_{t+1},x_0)\|p_\theta(x_t|x_{t+1}))$依然不是一个可计算的形式，进一步将其变化为
+要用模型$z_\theta$来近似$z_t$，首先来看看怎么描述$z_\theta$的损失。由于$L_t$描述了$p_\theta(x_t|x_{t+1})$和$(q(x_t|x_{t+1},x_0)$的近似程度，我们希望可以从中推出$z_\theta$和$z_t$的近似程度描述。
+
+考虑时间为$t$时的单步损失$L_t=D_{KL}(q(x_{t-1}|x_{t},x_0)\|p_\theta(x_{t-1}|x_{1}))$，依然不是一个可直接计算的形式。
+
+> 注意，这里的$L_t$和上面拆解$L_\text{VLB}$时的$L_t$不一样，下标差了一位。
+
+不过我们前面已经推导了$q(x_{t-1}|x_t,x_0)$，同时又知道$p_\theta(x_{t-1}|x_{t})$有均值$μ_\theta(x_t,t)=\frac1{\sqrt{α_t}}(x_t−\frac{β_t}{\sqrt{1−\bar α_t}}z_\theta)$，不妨设其方差为$\Sigma_\theta(x_t,t)$，根据正态分布的KL散度计算式，进一步将其写成
 $$
-L_t = E_{x_0,z}\left[
- \frac1{2\|\Sigma_\theta(x_t,t)\|^2_2} \|\tilde\mu_t(x_t,x_0)-\mu_\theta(x_t,t)\|^2_2
-\right] +C
+\begin{aligned}
+L_t 
+&= \mathbb{E}_{\mathbf{x}_0, \boldsymbol{z}} \Big[\frac{1}{2 \| \boldsymbol{\Sigma}_\theta(\mathbf{x}_t, t) \|^2_2} \| \color{blue}{\tilde{\boldsymbol{\mu}}_t(\mathbf{x}_t, \mathbf{x}_0)} - \color{green}{\boldsymbol{\mu}_\theta(\mathbf{x}_t, t)} \|^2 \Big] \\
+&= \mathbb{E}_{\mathbf{x}_0, \boldsymbol{z}} \Big[\frac{1}{2  \|\boldsymbol{\Sigma}_\theta \|^2_2} \| \color{blue}{\frac{1}{\sqrt{\alpha_t}} \Big( \mathbf{x}_t - \frac{1 - \alpha_t}{\sqrt{1 - \bar{\alpha}_t}} \boldsymbol{z}_t \Big)} - \color{green}{\frac{1}{\sqrt{\alpha_t}} \Big( \mathbf{x}_t - \frac{1 - \alpha_t}{\sqrt{1 - \bar{\alpha}_t}} \boldsymbol{\boldsymbol{z}}_\theta(\mathbf{x}_t, t) \Big)} \|^2 \Big] \\
+&= \mathbb{E}_{\mathbf{x}_0, \boldsymbol{z}} \Big[\frac{ (1 - \alpha_t)^2 }{2 \alpha_t (1 - \bar{\alpha}_t) \| \boldsymbol{\Sigma}_\theta \|^2_2} \|\boldsymbol{z}_t - \boldsymbol{z}_\theta(\mathbf{x}_t, t)\|^2 \Big] \\
+&= \mathbb{E}_{\mathbf{x}_0, \boldsymbol{z}} \Big[\frac{ (1 - \alpha_t)^2 }{2 \alpha_t (1 - \bar{\alpha}_t) \| \boldsymbol{\Sigma}_\theta \|^2_2} \|\boldsymbol{z}_t - \boldsymbol{z}_\theta(\sqrt{\bar{\alpha}_t}\mathbf{x}_0 + \sqrt{1 - \bar{\alpha}_t}\boldsymbol{z}_t, t)\|^2 \Big] 
+\end{aligned}
 $$
-损失项$ L_t $被参数化，也即表示成与$(x_t,t)$有关的函数，它表示模型$\mu_\theta$的结果与理论结果$ \tilde μ_t $的差距：
+> 虽然前面提到了这是按照封闭形式（closed form）计算的，但是好像和公式不完全一样吧( ╯□╰ )这个推导暂时存疑。
 
-![img](img/v2-696f039d909c1f9b2c0c301c04b11cc8_1440w.webp)
+现在损失项$ L_t $表示成与$(x_t,t)$有关的函数，它就可以用了表示模型$\mu_\theta$的结果与理论结果$ \tilde μ_t $的差距。
 
-根据经验，[Ho et al. (2020)](https://link.zhihu.com/?target=https%3A//arxiv.org/abs/2006.11239) 发现，在忽略加权项（似乎只忽略系数）的简化目标函数下，扩散模型可以训练得效果更好：
+根据经验，[Ho et al. (2020)](https://link.zhihu.com/?target=https%3A//arxiv.org/abs/2006.11239) 发现，在忽略系数的简化目标函数下，扩散模型可以训练得效果更好，也即只用
 $$
 \begin{aligned}
 L_t^\text{simple}
-&= \mathbb{E}_{t \sim [1, T], \mathbf{x}_0, \boldsymbol{\epsilon}_t} \Big[\|\boldsymbol{\epsilon}_t - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t)\|^2 \Big] \\
-&= \mathbb{E}_{t \sim [1, T], \mathbf{x}_0, \boldsymbol{\epsilon}_t} \Big[\|\boldsymbol{\epsilon}_t - \boldsymbol{\epsilon}_\theta(\sqrt{\bar{\alpha}_t}\mathbf{x}_0 + \sqrt{1 - \bar{\alpha}_t}\boldsymbol{\epsilon}_t, t)\|^2 \Big]
+&= \mathbb{E}_{t \sim [1, T], \mathbf{x}_0, \boldsymbol{z}_t} \Big[\|\boldsymbol{z}_t - \boldsymbol{z}_\theta(\mathbf{x}_t, t)\|^2 \Big] \\
+&= \mathbb{E}_{t \sim [1, T], \mathbf{x}_0, \boldsymbol{z}_t} \Big[\|\boldsymbol{z}_t - \boldsymbol{z}_\theta(\sqrt{\bar{\alpha}_t}\mathbf{x}_0 + \sqrt{1 - \bar{\alpha}_t}\boldsymbol{z}_t, t)\|^2 \Big]
 \end{aligned}
 $$
-这里的$\epsilon$相当于前述的$z$。
-
-在这个最终的损失函数中，$z_t$来自$x_t$与$x_0$的关系式，$z_\theta$则是模型的产出。
+在这个最终的损失函数中，$z_t$来自$x_t$与$x_0$的关系式，可以直接算出，$z_\theta$则是模型的产出。
 
 ### 2. 训练与推理过程伪代码
 
+图中的$\epsilon_\theta$即为前述的$z_\theta$，原论文是用$\epsilon$来表示噪声的。
+
 ![img](img/DDPM-algo.png)
 
-不妨假设我们的模型是一个多层感知机，表示为$z_\theta(x_t,t)$，其目的是输出$z_\theta$来作为$z_t$的估计，$z_t$来自$x_t$与$x_0$的关系式。
+假设我们的模型是一个U-net，表示为$z_\theta(x_t,t)$，其目的是输出$z_\theta$来作为$z_t$的估计。按理来说$z_t$由$x_t$与$x_0$算出，但是考虑到，$x_t$本就是是$x_0$加随机噪声产生的，$z_t$的分布又已知是标准整体分布，那么不如直接从标准正态分布中采样出$z_t$。所以图中并未出现$\epsilon_t$的计算，而是直接采样$\epsilon\sim N(0,I)$。
 
-在训练时，为了获得参数$\theta$，以$L_t=\|\boldsymbol{\epsilon} - \boldsymbol{\epsilon}_\theta(\sqrt{\bar{\alpha}_t}\mathbf{x}_0 + \sqrt{1 - \bar{\alpha}_t}\boldsymbol{\epsilon}, t)\|^2$作为损失函数，逐时间点$t$来训练。这里$\epsilon$是随机给出的，我认为其有效性在于，$z_\theta$主要与$t$相关，所以随机的$\epsilon$配合$t$依然可以给出$z_t$的有效信息。
+另一方面，训练时每次梯度下降只有$t$在变，而不涉及$x_t$，所以也没必要按照$t=1,2,...$的顺序来计算，因此图中的$t$是每次直接从${1,2,...,T}$中抽取的。
 
 训练完成后，就可以用$z_\theta(x_t,t)$代替$z_t$了。于是用式$x_{t-1}=\frac{1}{\sqrt{\alpha_t}} \Big(x_t - \frac{1-\alpha_t}{\sqrt{1 - \bar{\alpha}_t}} z_\theta \Big)+\sigma_tz$来计算$x_{t-1}$。其中，$\sigma_t z$的意义是给出方差。$\sigma_t$被设定成常数$\beta_t$或者$\tilde{\beta}_t = \frac{1 - \bar{\alpha}_{t-1}}{1 - \bar{\alpha}_t} \cdot \beta_t$，这是[Ho et al. (2020)](https://arxiv.org/abs/2006.11239)所选择的，后来也有人给出了学习$\sigma_t$或者说$\Sigma_\theta$的方法。
