@@ -169,7 +169,7 @@ $$
 就像VAE中一样，考虑$p_\theta(x_0)$的负对数似然，满足下面的不等式：
 $$
 \begin{aligned}
-- \log p_\theta(\mathbf{x}_0) 
+- \log p_\theta(\mathbf{x}_0)
 &\leq - \log p_\theta(\mathbf{x}_0) + D_\text{KL}(q(\mathbf{x}_{1:T}\vert\mathbf{x}_0) \| p_\theta(\mathbf{x}_{1:T}\vert\mathbf{x}_0) ) & \small{\text{; KL is non-negative}}\\
 &= - \log p_\theta(\mathbf{x}_0) + \mathbb{E}_{\mathbf{x}_{1:T}\sim q(\mathbf{x}_{1:T} \vert \mathbf{x}_0)} \Big[ \log\frac{q(\mathbf{x}_{1:T}\vert\mathbf{x}_0)}{p_\theta(\mathbf{x}_{0:T}) / p_\theta(\mathbf{x}_0)} \Big] \\
 &= - \log p_\theta(\mathbf{x}_0) + \mathbb{E}_q \Big[ \log\frac{q(\mathbf{x}_{1:T}\vert\mathbf{x}_0)}{p_\theta(\mathbf{x}_{0:T})} + \log p_\theta(\mathbf{x}_0) \Big] \\
@@ -294,6 +294,6 @@ $$
 
 另一方面，训练时每次梯度下降只有$t$在变，而不涉及$x_t$，所以也没必要按照$t=1,2,...$的顺序来计算，因此图中的$t$是每次直接从${1,2,...,T}$中抽取的。
 
-训练完成后，就可以用$z_\theta(x_t,t)$代替$z_t$了。于是用式$x_{t-1}=\frac{1}{\sqrt{\alpha_t}} \Big(x_t - \frac{1-\alpha_t}{\sqrt{1 - \bar{\alpha}_t}} z_\theta \Big)+\sigma_tz$来计算$x_{t-1}$。其中，$\sigma_t z$的意义是给出方差。$\sigma_t$被设定成常数$\beta_t$或者$\tilde{\beta}_t = \frac{1 - \bar{\alpha}_{t-1}}{1 - \bar{\alpha}_t} \cdot \beta_t$，这是[Ho et al. (2020)](https://arxiv.org/abs/2006.11239)所选择的，后来也有人给出了学习$\sigma_t$或者说$\Sigma_\theta$的方法。
+训练完成后，就可以用$z_\theta(x_t,t)$代替$z_t$了。于是用式$x_{t-1}=\frac{1}{\sqrt{\alpha_t}} \Big(x_t - \frac{1-\alpha_t}{\sqrt{1 - \bar{\alpha}_t}} z_\theta \Big)+\sigma_tz$来计算$x_{t-1}$。其中，$\sigma_t z$的意义是给出方差。$\sigma_t$被设定成常数$\beta_t$或者$\tilde{\beta}_t = \frac{1 - \bar{\alpha}_{t-1}}{1 - \bar{\alpha}_t} \cdot \beta_t$，后来也有人给出了学习$\sigma_t$的方法。
 
-> 这里我其实还有一个疑问，按说用均值$x_t - \frac{1-\alpha_t}{\sqrt{1 - \bar{\alpha}_t}} z_\theta $来作为$x_{t-1}$的估计也可以，为什么一定要加上方差那一项呢？只是为了让$x_{t-1}$确实满足推导出来的分布好像也不是很有意义。
+> 这里我其实还有一个疑问，按说用均值$x_t - \frac{1-\alpha_t}{\sqrt{1 - \bar{\alpha}_t}} z_\theta $来作为$x_{t-1}$的估计也可以，为什么一定要加上方差那一项呢？只是为了让$x_{t-1}$确实满足推导出来的分布好像也不是很有意义。GPT的解释是为了保证随机性，仅仅有$x_T\sim N(0，I)$中的随机性还不足以保证能生成丰富的内容。
