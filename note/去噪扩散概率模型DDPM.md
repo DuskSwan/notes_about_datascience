@@ -51,14 +51,14 @@ $$
 
 我们定义$ α_t=1−β_t $，$ \bar α_t=∏_{i=1}^tα_i=∏_{i=1}^t(1−β_i)$，那么根据前述的关系，我们得到：
 $$
-\begin{align}
+\begin{aligned}
 x_t &= \sqrt{\alpha_t}x_{t-1}+\sqrt{1-\alpha_t}z_{t-1} \\
 &= \sqrt{\alpha_t}(\sqrt{\alpha_{t-1}}x_{t-2}+\sqrt{1-\alpha_{t-1}}z_{t-2})+\sqrt{1-\alpha_t}z_{t-1} \\
 &= \sqrt{\alpha_t\alpha_{t-1}}x_{t-2}+\sqrt{\alpha_t(1-\alpha_{t-1})}z_{t-2}+\sqrt{1-\alpha_t}z_{t-1} \\
 &= \sqrt{\alpha_t\alpha_{t-1}}x_{t-2}+\sqrt{1-\alpha_{t}\alpha_{t-1}}\bar z_{t-2} \\
 &= \cdots \\
 &= \sqrt{\bar\alpha_t}x_{0}+\sqrt{1-\bar\alpha_{t}}z \\
-\end{align}
+\end{aligned}
 $$
 先看省略号之前的部分，这里$\bar z_{t-2}=\displaystyle\frac{\sqrt{\alpha_t(1-\alpha_{t-1})}z_{t-2}+\sqrt{1-\alpha_t}z_{t-1}}{\sqrt{1-\alpha_{t}\alpha_{t-1}}}$，由于$z_{t-1},z_{t-2}$都是服从标准正态分布的，因此$\bar z_{t-2}$是两个标准正态分布的变量的线性组合，也服从正态分布。实际上这个正态分布我们可以算出来，其均值还是$0$，方差是$\displaystyle \frac{\alpha_t(1-\alpha_{t-1})I+(1-\alpha_t)I}{1-\alpha_{t}\alpha_{t-1}}=I$，没想到吧，还是个标准正态分布。由此类推，$x_t=\sqrt{a_ta_{t-1}a_{t-2}}x_{t-3}+\sqrt{1-a_ta_{t-1}a_{t-2}}\bar z_{t-3}$时的$\bar z_{t-3}$同样还是标准正态分布。
 
@@ -107,7 +107,7 @@ N(x_{t-1}; {\tilde{{\mu}}}(x_t, x_0), {\tilde{\beta}_t} I)
 $$
 使用贝叶斯公式，可以得到：
 $$
-\begin{align}
+\begin{aligned}
 q(x_{t−1}|x_t,x_0)
 &= q(x_t|x_{t−1},x_0)\frac{q(x_{t−1}|x_0)}{q(x_t|x_0)} \\
 & \propto \exp⁡\left[ -\frac12 \left(
@@ -120,7 +120,7 @@ q(x_{t−1}|x_t,x_0)
 	(\frac{2\sqrt{\alpha_t}}{\beta_t}x_t+\frac{2\sqrt{\bar\alpha_{t-1}}}{1−\bar α_{t−1}}x_0)x_{t-1} +
 	C(x_t,x_0)
 	\right)\right] \\
-\end{align}
+\end{aligned}
 $$
 
 > 这里的$q$当作密度函数来理解，套用贝叶斯公式在连续型变量下的公式即可。
@@ -159,6 +159,8 @@ $$
 于是，我们决定用一个模型$z_\theta$来学出$z_t$，这次真的是个模型（函数）了，它接收时间$t$作为输入，给出$t$对应的$z_t$的近似值$z_\theta$。这也就是上面提过的，并不需要真的给出一个分布$p_\theta$，只要模型能给出$z_\theta$来近似$z_t$，$p_\theta$其实是由$z_\theta$得到的。
 
 ### 以目标数据分布的似然函数作为损失函数
+
+> 纯理论，感觉对训练也没啥帮助，可以无视这部分。
 
 先从理论上分析一下用$p_\theta(x_0)$来近似真实分布$q(x_0)$时的损失。
 
@@ -227,17 +229,33 @@ $L_\text{VLB}$ 中的每个KL项（也即除了$L_0$的每个$L_t$）都比较�
 
 ### 1. 训练损失$ L_t $的参数化
 
-下来要给出具体的模型形式，以及训练目标了。
+下来要给出具体的模型形式，以及训练目标了。考虑每一步去噪时的情况。
 
 回忆一下，之前说到我们希望模拟逆扩散过程中的条件概率分布 $p_θ(x_{t−1}|x_t)=N(x_{t−1};μ_θ(x_t,t),\Sigma_θ(x_t,t)) $。事实上，只需要有模型$ μ_θ $来近似这个分布的均值$\tilde μ_t=\frac1{\sqrt{α_t}}(x_t−\frac{β_t}{\sqrt{1−\bar α_t}}z_t)$，就可以用$\mu_\theta$作为$ x_{t-1} $的预测。因为我们已经有了$x_t$作为训练时的输入，又可以将高斯噪声项$z_t$也看作与$(x_t,t)$有关的函数，建模$\mu_\theta$就转化成了建模$z_\theta$来近似$z_t$。
 
-要用模型$z_\theta$来近似$z_t$，首先来看看怎么描述$z_\theta$的损失。由于$L_t$描述了$p_\theta(x_t|x_{t+1})$和$(q(x_t|x_{t+1},x_0)$的近似程度，我们希望可以从中推出$z_\theta$和$z_t$的近似程度描述。
+要用模型$z_\theta$来近似$z_t$，首先来看看怎么描述$z_\theta$的损失。最直接最自然的想法就是用二者的欧式距离$\|z_t-z_\theta\|^2$来当作损失。我们事先已经进行过了加噪，$z_t$是已知的。于是第$t$步的损失函数就是
+
+$$
+\begin{aligned}
+L_t 
+=& \|z_t - z_\theta(x_t,t) \| \\
+=& \left\|z_t - z_\theta(\sqrt{\bar\alpha_t}x_{0}+\sqrt{1-\bar\alpha_{t}}z_t,t) \right\|
+\end{aligned}
+$$
+
+这里要把$x_t$用$x_0$和$z_t$表示是因为$x_t$本身是我们造出来的，其本身蕴含了$z_t$的信息，不能作为“常量”参与训练。
+
+论文里还提供了另一种视角描述如何得出损失函数，这里权作翻译，看官自行取舍。
+
+上文中从理论上分析了用$p_\theta(x_0)$来近似真实分布$q(x_0)$时的损失，其中用KL
+散度描述了$p_\theta(x_t|x_{t+1})$和$q(x_t|x_{t+1},x_0)$的近似程度，我们希望可以从中推出$z_\theta$和$z_t$的近似程度描述。
 
 考虑时间为$t$时的单步损失$L_t=D_{KL}(q(x_{t-1}|x_{t},x_0)\|p_\theta(x_{t-1}|x_{1}))$，依然不是一个可直接计算的形式。
 
 > 注意，这里的$L_t$和上面拆解$L_\text{VLB}$时的$L_t$不一样，下标差了一位。
 
 不过我们前面已经推导了$q(x_{t-1}|x_t,x_0)$，同时又知道$p_\theta(x_{t-1}|x_{t})$有均值$μ_\theta(x_t,t)=\frac1{\sqrt{α_t}}(x_t−\frac{β_t}{\sqrt{1−\bar α_t}}z_\theta)$，不妨设其方差为$\Sigma_\theta(x_t,t)$，根据正态分布的KL散度计算式，进一步将其写成
+
 $$
 \begin{aligned}
 L_t 
@@ -247,11 +265,13 @@ L_t
 &= \mathbb{E}_{\mathbf{x}_0, \boldsymbol{z}} \Big[\frac{ (1 - \alpha_t)^2 }{2 \alpha_t (1 - \bar{\alpha}_t) \| \boldsymbol{\Sigma}_\theta \|^2_2} \|\boldsymbol{z}_t - \boldsymbol{z}_\theta(\sqrt{\bar{\alpha}_t}\mathbf{x}_0 + \sqrt{1 - \bar{\alpha}_t}\boldsymbol{z}_t, t)\|^2 \Big] 
 \end{aligned}
 $$
+
 > 虽然前面提到了这是按照封闭形式（closed form）计算的，但是好像和公式不完全一样吧( ╯□╰ )这个推导暂时存疑。
 
 现在损失项$ L_t $表示成与$(x_t,t)$有关的函数，它就可以用了表示模型$\mu_\theta$的结果与理论结果$ \tilde μ_t $的差距。
 
 根据经验，[Ho et al. (2020)](https://link.zhihu.com/?target=https%3A//arxiv.org/abs/2006.11239) 发现，在忽略系数的简化目标函数下，扩散模型可以训练得效果更好，也即只用
+
 $$
 \begin{aligned}
 L_t^\text{simple}
@@ -259,7 +279,8 @@ L_t^\text{simple}
 &= \mathbb{E}_{t \sim [1, T], \mathbf{x}_0, \boldsymbol{z}_t} \Big[\|\boldsymbol{z}_t - \boldsymbol{z}_\theta(\sqrt{\bar{\alpha}_t}\mathbf{x}_0 + \sqrt{1 - \bar{\alpha}_t}\boldsymbol{z}_t, t)\|^2 \Big]
 \end{aligned}
 $$
-在这个最终的损失函数中，$z_t$来自$x_t$与$x_0$的关系式，可以直接算出，$z_\theta$则是模型的产出。
+
+这跟我们用朴素的思路得到的结论是一样的。
 
 ### 2. 训练与推理过程伪代码
 
@@ -274,3 +295,5 @@ $$
 另一方面，训练时每次梯度下降只有$t$在变，而不涉及$x_t$，所以也没必要按照$t=1,2,...$的顺序来计算，因此图中的$t$是每次直接从${1,2,...,T}$中抽取的。
 
 训练完成后，就可以用$z_\theta(x_t,t)$代替$z_t$了。于是用式$x_{t-1}=\frac{1}{\sqrt{\alpha_t}} \Big(x_t - \frac{1-\alpha_t}{\sqrt{1 - \bar{\alpha}_t}} z_\theta \Big)+\sigma_tz$来计算$x_{t-1}$。其中，$\sigma_t z$的意义是给出方差。$\sigma_t$被设定成常数$\beta_t$或者$\tilde{\beta}_t = \frac{1 - \bar{\alpha}_{t-1}}{1 - \bar{\alpha}_t} \cdot \beta_t$，这是[Ho et al. (2020)](https://arxiv.org/abs/2006.11239)所选择的，后来也有人给出了学习$\sigma_t$或者说$\Sigma_\theta$的方法。
+
+> 这里我其实还有一个疑问，按说用均值$x_t - \frac{1-\alpha_t}{\sqrt{1 - \bar{\alpha}_t}} z_\theta $来作为$x_{t-1}$的估计也可以，为什么一定要加上方差那一项呢？只是为了让$x_{t-1}$确实满足推导出来的分布好像也不是很有意义。
