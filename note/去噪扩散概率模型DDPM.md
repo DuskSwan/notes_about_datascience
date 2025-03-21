@@ -1,8 +1,10 @@
-主要参考：https://zhuanlan.zhihu.com/p/530602852
+模型原理主要参考：https://zhuanlan.zhihu.com/p/530602852
 
-它的原文是：https://lilianweng.github.io/posts/2021-07-11-diffusion-models/
+它的原文是博客：https://lilianweng.github.io/posts/2021-07-11-diffusion-models/
 
-重要参考：https://spaces.ac.cn/archives/9119
+另外，理论推导和解释方面见苏神的博客：https://spaces.ac.cn/archives/9119
+
+关于代码实现，最好的教程是：https://huggingface.co/learn/diffusion-course/unit1/3
 
 [TOC]
 
